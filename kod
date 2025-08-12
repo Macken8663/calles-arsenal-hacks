@@ -1,0 +1,454 @@
+-- Ladda in Rayfield UI
+local Rayfield = loadstring(game:HttpGet('https://github.com/Macken8663/calles-arsenal-hacks/new/main/rayfield'))()
+
+-- Grundläggande tjänster
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+local flying = false
+local flySpeed = 100
+local flyForce = nil
+local autoClicking = false
+local infiniteJumpEnabled = false
+local espEnabled = false
+local espBoxes = {}
+local espColor = Color3.fromRGB(255, 0, 0)
+local aimbotEnabled = false
+local aimbotFOV = 70
+local aimSmoothness = 0.3
+local aimTargetPart = "Head" -- Standard träffpunkt
+local infiniteAmmoEnabled = false
+
+local aimbotActive = false -- för att tracka om musknappen hålls nere
+
+-- FOV-cirkel variabler
+local fovCircleEnabled = false
+local fovCircleSize = 70
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1
+FOVCircle.NumSides = 64
+FOVCircle.Radius = fovCircleSize
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Visible = false
+
+-- Skapa fönster
+local Window = Rayfield:CreateWindow({
+    Name = "Calles hack (Rayfield)",
+    LoadingTitle = "Calles hack",
+    LoadingSubtitle = "By calle",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "CallesHack",
+        FileName = "Config"
+    }
+})
+
+-- Tabbar
+local MainTab = Window:CreateTab("Main", 4483345998)
+local AimbotTab = Window:CreateTab("Aimbot", 4483345998)
+local FlyTab = Window:CreateTab("Fly Hack", 4483345998)
+local ESPTab = Window:CreateTab("ESP", 4483345998)
+local MiscTab = Window:CreateTab("Misc", 4483345998)
+
+-- Glow Toggle
+MainTab:CreateToggle({
+    Name = "Enable Glow",
+    CurrentValue = false,
+    Flag = "GlowToggle",
+    Callback = function(val)
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        local glow = hrp:FindFirstChild("GlowLight") or Instance.new("PointLight", hrp)
+        glow.Name = "GlowLight"
+        glow.Brightness = val and 5 or 0
+        glow.Range = 15
+        glow.Color = Color3.fromRGB(255, 255, 0)
+    end
+})
+
+-- Speed Boost
+Misc:CreateToggle({
+    Name = "Speed Boost",
+    CurrentValue = false,
+    Flag = "SpeedBoost",
+    Callback = function(state)
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = state and 50 or 16
+        end
+    end
+})
+
+-- Jump Power Slider
+Misc:CreateSlider({
+    Name = "Jump Power",
+    Range = {50, 150},
+    Increment = 1,
+    Suffix = "Power",
+    CurrentValue = 100,
+    Flag = "JumpPower",
+    Callback = function(val)
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.JumpPower = val
+        end
+    end
+})
+
+-- Glow Color Picker
+Misc:CreateColorPicker({
+    Name = "Glow Color",
+    Color = Color3.fromRGB(255, 255, 0),
+    Flag = "GlowColor",
+    Callback = function(color)
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local light = hrp:FindFirstChild("GlowLight")
+            if light then light.Color = color end
+        end
+    end
+})
+
+-- Teleport till spelare
+Misc:CreateInput({
+    Name = "Teleport to Player",
+    PlaceholderText = "Ange spelarnamn",
+    RemoveTextAfterFocusLost = true,
+    Callback = function(name)
+        local target = Players:FindFirstChild(name)
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(2,0,2))
+        end
+    end
+})
+
+-- Auto Clicker
+Misc:CreateToggle({
+    Name = "Auto Clicker",
+    CurrentValue = false,
+    Flag = "AutoClicker",
+    Callback = function(state)
+        autoClicking = state
+    end
+})
+
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+        if autoClicking then
+            local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("Activate") then
+                tool:Activate()
+            end
+        end
+    end
+end)
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpEnabled then
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+flyhack:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Flag = "InfiniteJump",
+    Callback = function(state)
+        infiniteJumpEnabled = state
+    end
+})
+
+-- Infinite Ammo Toggle
+Misc:CreateToggle({
+    Name = "Infinite Ammo",
+    CurrentValue = false,
+    Flag = "InfiniteAmmo",
+    Callback = function(state)
+        infiniteAmmoEnabled = state
+    end
+})
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if infiniteAmmoEnabled then
+            local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+            if tool then
+                local ammoValue = tool:FindFirstChild("Ammo") or tool:FindFirstChild("ammo") or tool:FindFirstChild("AmmoValue")
+                if ammoValue and ammoValue:IsA("IntValue") then
+                    ammoValue.Value = ammoValue.MaxValue or 999
+                end
+            end
+        end
+    end
+end)
+
+-- ESP Toggle
+aimbot:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = false,
+    Flag = "ESP",
+    Callback = function(state)
+        espEnabled = state
+        if not state then
+            -- Ta bort boxar
+            for _, box in pairs(espBoxes) do
+                box:Remove()
+            end
+            espBoxes = {}
+        end
+    end
+})
+
+-- ESP Color Picker
+aimbot:CreateColorPicker({
+    Name = "ESP Color",
+    Color = espColor,
+    Flag = "ESPColor",
+    Callback = function(color)
+        espColor = color
+        -- Uppdatera färg på alla boxar
+        for _, box in pairs(espBoxes) do
+            box.Color = espColor
+        end
+    end
+})
+
+-- Aimbot Tab Inställningar
+AimbotTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = false,
+    Flag = "Aimbot",
+    Callback = function(state)
+        aimbotEnabled = state
+    end
+})
+
+AimbotTab:CreateSlider({
+    Name = "Aimbot FOV",
+    Range = {10, 150},
+    Increment = 1,
+    Suffix = "°",
+    CurrentValue = 70,
+    Flag = "AimbotFOV",
+    Callback = function(val)
+        aimbotFOV = val
+    end
+})
+
+AimbotTab:CreateSlider({
+    Name = "Aim Smoothness",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    Suffix = "",
+    CurrentValue = 0.3,
+    Flag = "AimSmoothness",
+    Callback = function(val)
+        aimSmoothness = val
+    end
+})
+
+AimbotTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = false,
+    Flag = "ShowFOVCircle",
+    Callback = function(state)
+        fovCircleEnabled = state
+        FOVCircle.Visible = state
+    end
+})
+
+AimbotTab:CreateSlider({
+    Name = "FOV Circle Size",
+    Range = {10, 300},
+    Increment = 1,
+    Suffix = "px",
+    CurrentValue = 70,
+    Flag = "FOVCircleSize",
+    Callback = function(val)
+        fovCircleSize = val
+        FOVCircle.Radius = val
+    end
+})
+
+AimbotTab:CreateDropdown({
+    Name = "Aim Target Part",
+    Options = {"Head", "UpperTorso", "LowerTorso", "RightFoot", "LeftFoot", "RightHand", "LeftHand", "RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm"},
+    CurrentOption = {"Head"},
+    Callback = function(option)
+        aimTargetPart = option[1]
+    end
+})
+
+-- Funktion: Hitta närmaste fiendes valda kroppsdel
+local function getClosestEnemyPart()
+    local closestPart = nil
+    local shortestDistance = aimbotFOV
+    local cam = workspace.CurrentCamera
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and (not plr.Team or plr.Team ~= player.Team) then
+            local part = plr.Character:FindFirstChild(aimTargetPart)
+            if part then
+                local pos, onScreen = cam:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        closestPart = part
+                    end
+                end
+            end
+        end
+    end
+
+    return closestPart
+end
+
+-- Aimbot musknapp event
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aimbotActive = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aimbotActive = false
+    end
+end)
+
+-- Render loop
+RunService.RenderStepped:Connect(function()
+    -- Uppdatera FOV-cirkel
+    if fovCircleEnabled then
+        FOVCircle.Position = Vector2.new(mouse.X, mouse.Y + 36)
+        FOVCircle.Radius = fovCircleSize
+    end
+
+    -- Aimbot
+    if aimbotEnabled and aimbotActive then
+        local targetPart = getClosestEnemyPart()
+        if targetPart and workspace.CurrentCamera then
+            local cam = workspace.CurrentCamera
+            local targetCF = CFrame.new(cam.CFrame.Position, targetPart.Position)
+            cam.CFrame = cam.CFrame:Lerp(targetCF, aimSmoothness)
+        end
+    end
+
+    -- ESP
+    if espEnabled then
+        local cam = workspace.CurrentCamera
+        local players = Players:GetPlayers()
+        for _, plr in pairs(players) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChildOfClass("Humanoid") and plr.Character.Humanoid.Health > 0 then
+                local hrp = plr.Character.HumanoidRootPart
+                local head = plr.Character:FindFirstChild("Head")
+                local rootPos, onScreen = cam:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local box = espBoxes[plr]
+                    if not box then
+                        box = Drawing.new("Square")
+                        box.Thickness = 2
+                        box.Color = espColor
+                        box.Filled = false
+                        espBoxes[plr] = box
+                    end
+                    local headPos, headOnScreen = cam:WorldToViewportPoint(head.Position)
+                    local distance = (headPos - rootPos).Magnitude
+                    local size = 1500 / rootPos.Z
+
+                    box.Size = Vector2.new(size / 2, size)
+                    box.Position = Vector2.new(rootPos.X - box.Size.X / 2, rootPos.Y - box.Size.Y / 2)
+                    box.Color = espColor
+                    box.Visible = true
+                else
+                    if espBoxes[plr] then
+                        espBoxes[plr].Visible = false
+                    end
+                end
+            else
+                if espBoxes[plr] then
+                    espBoxes[plr].Visible = false
+                end
+            end
+        end
+    else
+        for _, box in pairs(espBoxes) do
+            box.Visible = false
+        end
+    end
+end)
+
+-- Fly funktioner
+local function startFly()
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    flying = true
+    hum.PlatformStand = true
+
+    flyForce = Instance.new("BodyVelocity")
+    flyForce.Velocity = Vector3.zero
+    flyForce.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    flyForce.Parent = hrp
+
+    RunService:BindToRenderStep("Fly", Enum.RenderPriority.Input.Value, function()
+        if not flying then return end
+
+        local cam = workspace.CurrentCamera
+        local dir = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+
+        dir = dir.Unit * flySpeed
+        if dir ~= dir then dir = Vector3.zero end -- om dir är NaN (0/0)
+
+        flyForce.Velocity = dir
+    end)
+end
+
+local function stopFly()
+    flying = false
+    if flyForce then
+        flyForce:Destroy()
+        flyForce = nil
+    end
+    local char = player.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.PlatformStand = false
+        end
+    end
+    RunService:UnbindFromRenderStep("Fly")
+end
+
+-- Fly Toggle
+FlyTab:CreateToggle({
+    Name = "Fly",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(state)
+        if state then
+            startFly()
+        else
+            stopFly()
+        end
+    end
+})
