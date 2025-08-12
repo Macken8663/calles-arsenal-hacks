@@ -1,5 +1,5 @@
 -- Ladda in Rayfield UI
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:Httpget("https://raw.githubusercontent.com/Macken8663/calles-arsenal-hacks/refs/heads/main/script"))()
 
 -- Grundläggande tjänster
 local Players = game:GetService("Players")
